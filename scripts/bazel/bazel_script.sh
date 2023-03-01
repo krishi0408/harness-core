@@ -60,12 +60,21 @@ if [ "${RUN_BAZEL_TESTS}" == "true" ]; then
 fi
 
 if [ "${RUN_CHECKS}" == "true" ]; then
-  get_PR_Modules
+  if [[ ""${BULD_PURPOSE}"" == "PR_CHECKS" ]];then
+    get_PR_Modules
+  else
+    GIT_DIFF="git diff --name-only develop $(git branch --show-current)"
+    # shellcheck disable=SC1073
+    PR_MODULES()
+    # shellcheck disable=SC1072
+    PR_MODULES+=($($GIT_DIFF | awk -F/ '{print $1}' | sort -u | tr '\r\n' ' '))
+  fi
+  fi
   TARGETS=()
   for module in "${PR_MODULES[@]}"
   do
-    if [[ $(bazel query 'attr (tags,"checkstyle",//'"$module"':*)') ]];then
-      TARGETS+=($(bazel query 'attr (tags,"checkstyle",//'"$module"':*)'))
+    if [[ $(bazel query 'attr (tags,"checkstyle",//'"$module"'/...)') ]];then
+      TARGETS+=($(bazel query 'attr (tags,"checkstyle",//'"$module"'/...)'))
     fi
   done
 
@@ -77,7 +86,15 @@ if [ "${RUN_CHECKS}" == "true" ]; then
 fi
 
 if [ "${RUN_PMDS}" == "true" ]; then
-  get_PR_Modules
+   if [[ ""${BULD_PURPOSE}"" == "PR_CHECKS" ]];then
+      get_PR_Modules
+    else
+      GIT_DIFF="git diff --name-only develop $(git branch --show-current)"
+      # shellcheck disable=SC1073
+      PR_MODULES()
+      # shellcheck disable=SC1072
+      PR_MODULES+=($($GIT_DIFF | awk -F/ '{print $1}' | sort -u | tr '\r\n' ' '))
+    fi
   TARGETS=()
   for module in "${PR_MODULES[@]}"
   do
@@ -92,7 +109,6 @@ if [ "${RUN_PMDS}" == "true" ]; then
   bazel ${bazelrc} build ${BAZEL_ARGUMENTS} -k ${TARGETS[@]}
   exit $?
 fi
-
 BAZEL_MODULES="\
   //100-migrator:module \
   //270-verification:module \
